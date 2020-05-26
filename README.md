@@ -1,10 +1,18 @@
 # Devax: Event Driven Architecture
 
-These are the instructions for the demos that were part of the AWS DevAx session on event driven architecture. The demo covers three EventBridge integration scenarios.
+These are the instructions for the demos that were part of the AWS DevAx session on event driven architecture. As part of the demo we will build a simple microservices application and use [Amazon EventBridge](https://aws.amazon.com/eventbridge/) for integration between the components. We will also look at how we can use it for integration with SaaS applications. The demo covers three EventBridge integration scenarios.
 
 1. From your application using AWS SDK
+
+    For this demo, we will simulate an order processing microservice communicating asynchronously with a forecasting microservice using EventBridge. We will use AWS Lambda to build both services.
+
 2. Using webhooks and API Gateway
+
+    For this demo, we will receive a callback from the payment processing platform, [Stripe](https://stripe.com), using webhooks. On AWS, we will use [Amazon API Gateway](https://aws.amazon.com/api-gateway/) to proxy requests directly to EventBridge.
+
 3. Native partner integration
+
+    We will look at an operations workflow here and show how you can receive build notifications for pipelines hosted on [Buildkite](https://buildkite.com/). We will use Buildkite's native partner integration with EventBridge.
 
 ## Architecture
 
@@ -36,7 +44,7 @@ We will now create a Lambda function to simulate order events for the event bus.
 
 Go to IAM on the console. Select `Roles` on the left-hand menu and then select `Create role`. Select `Lambda` on the next screen, search and select `AWSLambdaBasicExecutionRole`. You can expand this policy to check the exact permissions. This will allow access to CloudWatch logs. On the next screen, you can optionally tag the role. Name it `ordergen-function-role` and click `Create role`.
 
-We will add EventBridge permissions as an inline policy. Select the role you just created. Click on `Add inline policy`. For Serice, choose EventBridge. For Actions, expand `Write` and only select `PutEvents`. On the review screen name this `eventbridge-policy` and click on `Create policy`.
+We will add EventBridge permissions as an inline policy. Select the role you just created. Click on `Add inline policy`. For service, choose EventBridge. For Actions, expand `Write` and only select `PutEvents`. On the review screen name this `eventbridge-policy` and click on `Create policy`.
 
 ### 4. Create the order generator Lambda function
 
@@ -101,9 +109,9 @@ In the EventBridge console, select `Schemas`. You should see a new schema named 
 
 ### 7. Create the Forecast function to process order events using SAM CLI
 
-We will now create the forecast Lambda function that will consume order events to make inventory forecasts. We will use AWS SAM CLI to do this. Open your terminal. Create a new working folder, say `devax-eventbridge`. You can run `sam --version` to comfirm SAM CLI is installed. You can also try `sam --help` to see the different commands available.
+We will now create the forecast Lambda function that will consume order events to make inventory forecasts. We will use AWS SAM CLI to do this. Open your terminal. Create a new working folder, say `devax-eventbridge`. You can run `sam --version` to confirm SAM CLI is installed. You can also try `sam --help` to see the different commands available.
 
-We will use `sam init` to set up our project. This will prompt us for different options. If you are familiar with the options, you can directly pass them to the command and suppress the prompts. In our case, we will use a pre-built AWS Quickstart template to accelerate development. Below are the options I chose.
+We will use `sam init` to set up our project. This will prompt us for different options. If you are familiar with the options, you can directly pass them to the command and suppress the prompts. In our case, we will use a pre-built AWS QuickStart template to accelerate development. Below are the options I chose.
 
 ```bash
 Which template source would you like to use?
@@ -164,7 +172,7 @@ Open the IDE of your choice and navigate to the folder you created for this. Spe
 
 ### 8. Update and test the Forecast function locally
 
-We will execute all the SAM cli commands from the `forecast-app` folder. At the root of this folder, you will find a `template.yaml`. This is the SAM template that will be used to create the resources on AWS. This template defines a Lambda function that will be triggered by EventBridge event. The pattern specifies what events wll trigger this function. This was automatically created based on `Order-Service@NewOrder` schema in the schema registry. We just need to uncomment the event bus name and set this to `orders`. I have also updated the resource names. This is what my Resources and Outputs sections look like.
+We will execute all the SAM cli commands from the `forecast-app` folder. At the root of this folder, you will find a `template.yaml`. This is the SAM template that will be used to create the resources on AWS. This template defines a Lambda function that will be triggered by EventBridge event. The pattern specifies what events will trigger this function. This was automatically created based on `Order-Service@NewOrder` schema in the schema registry. We just need to uncomment the event bus name and set this to `orders`. I have also updated the resource names. This is what my Resources and Outputs sections look like.
 
 ```yaml
 Resources:
@@ -209,7 +217,7 @@ Let us test the function locally first. The events folder has a test event calle
 sam local invoke ForecastFunction --event events/event.json
 ```
 
-The function name must match what you have specified in teh Resources section of teplate.yaml. SAM will fetch the lambci/lambda:python3.8 Docker container image from DockerHub if it does not exist locally and use this to simulate the Lambda run time.
+The function name must match what you have specified in the resources section of teplate.yaml. SAM will fetch the lambci/lambda:python3.8 Docker container image from DockerHub if it does not exist locally and use this to simulate the Lambda run time.
 
 We will next run unit tests. This has also been automatically generated for you in the tests folder. Take a look at `tests/unit/test_handler.py`. It uses the pytest library. Scroll down to the bottom and change the assert statement to below.
 
@@ -230,7 +238,7 @@ If all went well, you should see the test pass.
 
 ### 9. Deploy Forecast function and verify
 
-Now that local tests have passed, we are ready to deploy our code. We will make use of the `sam deploy --guided --tags 'project=devax` command. Specifying tags is optional. Here are the options I chose. Make sure you choose the same AWS region you have been using so far.
+Now that local tests have passed, we are ready to deploy our code. We will make use of the `sam deploy --guided --tags 'project=devax'` command. Specifying tags is optional. Here are the options I chose. Make sure you choose the same AWS region you have been using so far.
 
 ```shell
 Configuring SAM deploy
@@ -254,7 +262,7 @@ Configuring SAM deploy
 		A different default S3 bucket can be set in samconfig.toml
 ```
 
-If this is the first time you are using SAM CLI, a new S3 bucket will be created for you. You will also see a changeset showing all the resources that will be created. Confirm deploying the changeset. This will create a Cloudformation stack to deploy the resources. You can view the progress on the terminal. If you head to the CloudFormation console, you should see a new stack created.
+If this is the first time you are using SAM CLI, a new S3 bucket will be created for you. You will also see a changeset showing all the resources that will be created. Confirm deploying the changeset. This will create a CloudFormation stack to deploy the resources. You can view the progress on the terminal. If you head to the CloudFormation console, you should see a new stack created.
 
 We are now ready to test the integration. Head over to the Lambda console and select your Forecast function. It should have a name similar to `forecast-app-ForecastFunction-xxxxxx`. Go to the monitoring tab and select `View logs in CloudWatch`. There should be no log streams. Now open the orgergen-function from the console and test it. Go back and refresh the forecast function logs. You should now see a log stream. Select it and you should see both the raw event Lambda received and the new order.
 
@@ -270,7 +278,7 @@ First, list all targets for the Forecast function, using the command below. Subs
 aws events list-targets-by-rule --rule forecast-app-ForecastFunctionNewOrder-xxxxx --event-bus-name orders
 ```
 
-Note down the Id and the Arn. Then create a target.json file with contents below. Update the Id and Arn to values you got from command above.
+Note down the Id and the Arn. Then create a `target.json` file with contents below. Update the Id and Arn to values you got from command above.
 
 ```json
 [
@@ -283,7 +291,7 @@ Note down the Id and the Arn. Then create a target.json file with contents below
         "order_date" : "$.detail.order_date",
         "items" : "$.detail.items"
       },
-      "InputTemplate": "\"{\\\"order_id\\\": \\\"<order_id>\\\",\\\"order_date\\\": \\\"<order_date>\\\",\\\"items\\\": \\\"<items>\\\"}\""
+      "InputTemplate": "{\"order_id\": <order_id>,\"order_date\": <order_date>,\"items\": <items>}"
    }
   }
 ]
@@ -303,7 +311,7 @@ Now test the ordergen-function from the Lambda console again. Refresh the Foreca
 {
     "order_id": "12345",
     "order_date": "2020-05-24 07:38:01.979602",
-    "items": "[{product_id:shoe_07,qty:1,price:40.0}]"
+    "items": [{"product_id": "shoe_07", "qty": 1, "price": 40.0}]
 }
 ```
 
@@ -343,7 +351,7 @@ Content-Type: 'application/x-amz-json-1.1'
 
 > You can find the PutEvents API documentation [here](https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html).
 
-Next, we will define a mapping template to map the event from Stripe to confirm to the envelope that EventBridge expects. Refer to the Stripe API doucumentation [here](https://stripe.com/docs/api/events/object). Expand `Mapping Templates` and select `Add mapping template`. Set Content-Type to application/json. Select Yes in the pop up. Copy-paste the VTL template below.
+Next, we will define a mapping template to map the event from Stripe to confirm to the envelope that EventBridge expects. Refer to the Stripe API documentation [here](https://stripe.com/docs/api/events/object). Expand `Mapping Templates` and select `Add mapping template`. Set Content-Type to application/json. Select Yes in the pop up. Copy-paste the VTL template below.
 
 ```json
 {
@@ -364,7 +372,7 @@ Save this and deploy the API to a new stage named production. Note down the Invo
 
 Login to your Stripe account and head to the `Developers` menu on the left. Select `Webhooks` and then `Add Endpoint`. Specify `<API Gateway invoke url>/payments` as the `Endpoint URL`. Optionally specify a description and for `Events to send`, select `Payment Intent`. Click on `Add Endpoint`.
 
-Before you test, head over to the `/aws/events/payments-catchall` log group on CloudWatch console and make sure there are no logs. Head over to Payments in Stripe and click `New`. Enter currency and amount of your choice. For card details, you can use the number specified in their [testing docs](https://stripe.com/docs/testing). Eneter statement description as `Test EventBridge` and click `Create payment`.
+Before you test, head over to the `/aws/events/payments-catchall` log group on CloudWatch console and make sure there are no logs. Head over to Payments in Stripe and click `New`. Enter currency and amount of your choice. For card details, you can use the number specified in their [testing docs](https://stripe.com/docs/testing). Enter statement description as `Test EventBridge` and click `Create payment`. You can also test directly from the webhooks page.
 
 Now, refresh your CloudWatch logs group and you should see new log streams. You should see one event for `payment_intent.created` and another for `payment_intent.succeeded`.
 
@@ -380,7 +388,7 @@ Once you complete step 1, you should see Buildkite integration show up under `Pa
 
 Create a catchall rule for this event bus to send all event to a CloudWatch logs group `/aws/events/buildkite-catchall`. This is similar to what we did for the orders workflow in step 5. Verify there are no streams in the log group.
 
-Set up a pipeline on Buildkite. You can use one of their sample pipleines [here](https://github.com/buildkite/example-pipelines). Start the Buildkite agent locally using the command below. Then trigger a build from the Buildkite console.
+Set up a pipeline on Buildkite. You can use one of their sample pipelines [here](https://github.com/buildkite/example-pipelines). Start the Buildkite agent locally using the command below. Then trigger a build from the Buildkite console.
 
 ```shell
 buildkite-agent start
@@ -394,6 +402,16 @@ Once the build completes, refresh the CloudWatch log group and you should see ne
 
     ```shell
     aws cloudformation delete-stack --stack-name forecast-app
+    ```
+
+    Delete the forecast Lambda function logs.
+
+    ```shell
+    for log_group in $(aws logs describe-log-groups --log-group-name-prefix '/aws/lambda/forecast-app-ForecastFunction-' --query "logGroups[*].logGroupName" --output text); do
+      echo "Removing log group ${log_group}..."
+      aws logs delete-log-group --log-group-name ${log_group}
+      echo
+    done
     ```
 
 2. Delete ordergen-function from Lambda console and its CloudWatch logs from the CloudWatch console.
@@ -426,7 +444,7 @@ Once the build completes, refresh the CloudWatch log group and you should see ne
     aws apigateway delete-rest-api --rest-api-id <id from command above>
     ```
 
-5. Delete the custom event buses - orders and payments. Targets have to be deleted first, followed by rules and finally the event bus. Lets look at payments first.
+5. Delete the custom event buses - orders and payments. Targets have to be deleted first, followed by rules and finally the event bus. Let us look at payments first.
 
     ```shell
     aws events list-rules --event-bus-name payments
@@ -452,6 +470,8 @@ Once the build completes, refresh the CloudWatch log group and you should see ne
     ```shell
     aws events delete-event-bus --name orders
     ```
+
+    Delete the auto-discovered schema from the schema registry using the console.
 
 6. Delete the webhook configuration from Stripe.
 
